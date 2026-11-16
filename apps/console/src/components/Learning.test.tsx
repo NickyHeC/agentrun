@@ -1866,7 +1866,7 @@ describe("learning-loop integration with source-owned execution", () => {
     expect(story.querySelector('[data-testid="stage-took_over"]')).toBeNull();
     expect(story.querySelector('[data-testid="stage-cheaper"]')).toBeNull();
   });
-  it.each(["claude-agent-sdk", "codex-sdk"] as const)("%s keeps launches in the backend and workflows explicitly bound", async runtime => {
+  it.each(["claude-agent-sdk", "codex-sdk", "eve"] as const)("%s keeps launches in the backend and workflows explicitly bound", async runtime => {
     const t = await open(agent(true, { sdk: { runtime } }));
     const story = t.host.querySelector('[data-testid="loop-story"]')!;
     expect(story.textContent).toContain("Your backend keeps launching each run");
@@ -1890,6 +1890,7 @@ describe("learning task entry follows the loaded execution binding", () => {
     ["native Codex", { native: native("codex") }, "original Claude Code or Codex setup"],
     ["Claude SDK", { sdk: { runtime: "claude-agent-sdk" } }, "backend using this agent’s SDK wrapper"],
     ["Codex SDK", { sdk: { runtime: "codex-sdk" } }, "backend using this agent’s SDK wrapper"],
+    ["Vercel eve", { sdk: { runtime: "eve" } }, "eve with the AgentRun eve extension enabled"],
   ] as const;
   const learned = (empty: boolean) => empty
     ? view({ notes: { items: [], total: 0, next_cursor: null }, log: { items: [], total: 0, next_cursor: null } })

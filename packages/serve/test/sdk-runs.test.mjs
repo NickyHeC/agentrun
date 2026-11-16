@@ -23,17 +23,18 @@ const startBody = {
 };
 const headers = (key) => ({ "Idempotency-Key": key });
 
-test("SDK backend runs retain caller execution, scope credentials, and reject conflicting or late evidence", async (t) => {
+for (const runtime of ["claude-agent-sdk", "codex-sdk", "eve"]) test(`${runtime} backend runs retain caller execution, scope credentials, and reject conflicting or late evidence`, async (t) => {
+  const request = { ...startBody, runtime };
   const server = await serve(t);
   const { api } = server;
-  const id = await register(api, "sdk-backend");
+  const id = await register(api, "sdk-backend", false, runtime);
   assert.equal(
     (await api("POST", `/agents/${id}/runs`, { input: { content: "Do not launch this in the managed runner." } }))
       .status,
     409,
   );
-  assert.equal((await api("POST", `/agents/${id}/sdk-runs`, startBody)).status, 400);
-  const started = await api("POST", `/agents/${id}/sdk-runs`, startBody, headers("first"));
+  assert.equal((await api("POST", `/agents/${id}/sdk-runs`, request)).status, 400);
+  const started = await api("POST", `/agents/${id}/sdk-runs`, request, headers("first"));
   assert.equal(started.status, 201, JSON.stringify(started.body));
   const receipt = started.body;
   assert.deepEqual(receipt.learning, { enabled: false, revision: null, context: "", skills: [], workflows: [] });
@@ -49,11 +50,11 @@ test("SDK backend runs retain caller execution, scope credentials, and reject co
     409,
     "only backend cancellation controls its SDK",
   );
-  const retry = await api("POST", `/agents/${id}/sdk-runs`, startBody, headers("first"));
+  const retry = await api("POST", `/agents/${id}/sdk-runs`, request, headers("first"));
   assert.equal(retry.body.run_id, receipt.run_id);
   assert.equal(retry.body.token, receipt.token);
   assert.equal(
-    (await api("POST", `/agents/${id}/sdk-runs`, { ...startBody, input: "Changed task" }, headers("first"))).status,
+    (await api("POST", `/agents/${id}/sdk-runs`, { ...request, input: "Changed task" }, headers("first"))).status,
     409,
   );
   assert.equal((await sdk("GET", "/agents")).status, 401, "scoped run token cannot read unrelated agents");
@@ -91,18 +92,18 @@ test("SDK backend runs retain caller execution, scope credentials, and reject co
   assert.equal(read.result.final_answer, "ready");
   assert.equal(read.learning, null);
   assert.deepEqual(read.sdk, {
-    runtime: "claude-agent-sdk",
+    runtime,
     model: "backend-model",
     session_id: "backend-session",
     learning_revision: null,
     usage: completion.usage,
   });
   assert.ok(
-    !JSON.stringify(read.sdk).includes(startBody.instructions),
+    !JSON.stringify(read.sdk).includes(request.instructions),
     "source policy is not copied into runtime metadata",
   );
   const stats = (await api("GET", "/stats")).body;
-  assert.equal(stats.analytics.by_harness_effort[0].harness, "claude-agent-sdk");
+  assert.equal(stats.analytics.by_harness_effort[0].harness, runtime);
   assert.equal(stats.analytics.totals.input, 20);
   assert.equal(stats.analytics.totals.output, 5);
   const timeline = (await api("GET", `/runs/${receipt.run_id}/timeline`)).body;
@@ -157,19 +158,19 @@ test("incomplete SDK evidence preserves successful task but drops learning witho
   assert.equal(await server.store.runs.get(`${start.body.run_id}-learning`), undefined);
 });
 
-test("SDK evidence enters the normal checked, independently graded learning lane and a fresh run receives its approved seed", async (t) => {
+for (const runtime of ["codex-sdk", "eve"]) test(`${runtime} evidence enters the normal checked, independently graded learning lane and a fresh run receives its approved seed`, async (t) => {
   const server = await serve(t, {
       faux: new URL("./fixtures/sdk-learning-model.mjs", import.meta.url).pathname,
       gradeModel: "anthropic/claude-sonnet-4-5",
     }),
     { api } = server;
-  const id = await register(api, "sdk-learns", "notes", "codex-sdk");
+  const id = await register(api, "sdk-learns", "notes", runtime);
   const first = await api(
     "POST",
     `/agents/${id}/sdk-runs`,
     {
       ...startBody,
-      runtime: "codex-sdk",
+      runtime,
       input: "Remember: begin every answer with Verified. What is the release status?",
     },
     headers("learn-first"),
@@ -196,7 +197,7 @@ test("SDK evidence enters the normal checked, independently graded learning lane
   const second = await api(
     "POST",
     `/agents/${id}/sdk-runs`,
-    { ...startBody, runtime: "codex-sdk" },
+    { ...startBody, runtime },
     headers("learn-second"),
   );
   assert.equal(second.status, 201, JSON.stringify(second.body));
@@ -213,7 +214,7 @@ test("SDK evidence enters the normal checked, independently graded learning lane
     "another run token cannot forge evidence",
   );
   await api("PUT", `/agents/${id}/definition`, { definition: { instructions: "Original policy.", learning: false } });
-  const off = await api("POST", `/agents/${id}/sdk-runs`, { ...startBody, runtime: "codex-sdk" }, headers("learn-off"));
+  const off = await api("POST", `/agents/${id}/sdk-runs`, { ...startBody, runtime }, headers("learn-off"));
   assert.deepEqual(off.body.learning, { enabled: false, revision: null, context: "", skills: [], workflows: [] });
   for (const receipt of [second.body, off.body])
     await client(server.baseUrl, receipt.token)("POST", `/sdk-runs/${receipt.run_id}/complete`, {

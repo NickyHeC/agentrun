@@ -218,7 +218,8 @@ function LearningView({ agent, v2, focus = [], server, onAgent, places, onChange
   // The loop at a glance: notes, the compile, the takeover, the money, where it is unsure; each says what comes next. Its
   // compile count is the server's (the loop read's completed_runs, what compileDue counts: the agent's own completed runs, never the one page of runs this tab reads): the cost
   // series' total counts failed and cancelled runs too. The newest runs read hold enough: the count stops at the threshold.
-  const execution = agent.definition.native ? "native" : backendSdkOf(agent.definition) ? "sdk" : "hosted";
+  const sdk = backendSdkOf(agent.definition);
+  const execution = agent.definition.native ? "native" : sdk ? "sdk" : "hosted";
   const story = storyOf({
     notes: active.length, compiledNotes: all.filter((x) => x.status !== "retired" && compiledInto(x.text) !== null).length,
     runs: loop?.completed_runs ?? 0, workflows, cost, promotions, serving, loop,
@@ -243,7 +244,9 @@ function LearningView({ agent, v2, focus = [], server, onAgent, places, onChange
     ? <LearnFromCsv v2={v2} agentId={agent.agent_id} onFinished={() => { setBatchEnds((n) => n + 1); void read(); }} />
     : <Banner tone="info">{execution === "native"
       ? "Run tasks with this agent’s original Claude Code or Codex setup."
-      : "Start tasks in your backend using this agent’s SDK wrapper."} Accepted notes and skills remain available here. CSV learning batches require server-managed execution. <a href={agentHash(agent.agent_id, "runs")} className="underline underline-offset-2">Open the agent’s Run controls</a>.</Banner>);
+      : sdk?.runtime === "eve"
+        ? "Start tasks in eve with the AgentRun eve extension enabled."
+        : "Start tasks in your backend using this agent’s SDK wrapper."} Accepted notes and skills remain available here. CSV learning batches require server-managed execution. <a href={agentHash(agent.agent_id, "runs")} className="underline underline-offset-2">Open the agent’s Run controls</a>.</Banner>);
 
   if (!all.length && !skills.length && !workflows.length && !adding) return frame(
     <div className="space-y-6">
