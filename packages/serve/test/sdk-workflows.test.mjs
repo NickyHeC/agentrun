@@ -221,7 +221,7 @@ async function waitLearning(sdk, path) {
   throw new Error("Learning did not settle.");
 }
 
-for (const [runtime, priced] of [["claude-agent-sdk", true], ["codex-sdk", true], ["claude-agent-sdk", false]]) test(`${runtime}${priced ? "" : " with an unpriced tool"} learns a workflow through the ordinary cadence and pins it for the next backend run`, { timeout: 90_000 }, async (t) => {
+for (const [runtime, priced] of [["claude-agent-sdk", true], ["codex-sdk", true], ["eve", true], ["claude-agent-sdk", false]]) test(`${runtime}${priced ? "" : " with an unpriced tool"} learns a workflow through the ordinary cadence and pins it for the next backend run`, { timeout: 90_000 }, async (t) => {
   const { client, follow } = await import("./support.mjs");
   const { SdkRuns } = await import("../dist/sdk/runs.js");
   const server = await serve(t, { faux: new URL("./fixtures/sdk-workflow-model.mjs", import.meta.url).pathname, gradeModel: "anthropic/claude-sonnet-4-5" });
