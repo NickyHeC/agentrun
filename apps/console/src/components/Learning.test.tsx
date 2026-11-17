@@ -724,8 +724,8 @@ describe("the switch and the empty states", () => {
     await settle();
     expect(t.agents.at(-1)?.definition.learning).toBe(false);
   });
-  it.each(["notes", true] as const)("an enable click preserves the freshly read %s mode without another revision", async learning => {
-    const current = agent(false, learning === true ? { sdk: { runtime: "eve" } } : {});
+  it.each(["notes", true, { compile_after: 5, agree_min: 0.95 }] as const)("an enable click preserves the freshly read %s mode without another revision", async learning => {
+    const current = agent(false, learning !== "notes" ? { sdk: { runtime: "eve" } } : {});
     const t = await open(current);
     // Another client saved a mode after this page rendered Off. getAgent reads that latest value.
     current.definition.learning = learning;
