@@ -447,7 +447,12 @@ function ManagedSavedSwitch({ agent, v2, onAgent, server, disabled, quiet }: { a
     setBusy(true); setTrouble(null); setShown(next);
     try {
       const { agent: now, etag } = await v2.getAgent(agent.agent_id);
-      const body = editBody(now, { learning: next }, next ? "Learning on" : "Learning off");
+      // A plain eve connection learns notes and skills. Full workflow mode requires explicit
+      // callback bindings; without them it can skip look-back on ordinary SDK turns.
+      // Preserve a mode already enabled by another writer instead of promoting or downgrading it.
+      const learning = !next ? false : now.definition.learning === "notes" ? "notes"
+        : now.definition.learning === true ? true : backendSdkOf(now.definition)?.runtime === "eve" ? "notes" : true;
+      const body = editBody(now, { learning }, next ? "Learning on" : "Learning off");
       if (body.unchanged) onAgent?.(now);
       else { const { unchanged: _u, ...send } = body; onAgent?.((await v2.updateDefinition(agent.agent_id, send, etag)).agent); }
     } catch (e) { setTrouble(e ?? new Error("unknown")); }
