@@ -578,7 +578,7 @@ function setupRecipe(source = false) {
   const file = source ? "../../serve/skills/agentrun-serve/SKILL.md" : "../../../docs/SKILL.md";
   const skill = readFileSync(new URL(file, import.meta.url), "utf8");
   const step = [...skill.matchAll(/```sh\n([\s\S]*?)```/g)].map((m) => m[1])
-    .find((block) => source ? block.includes("node packages/serve/dist/cli.js") : block.includes("npx --yes @parcha/agentrun@0.4 --no-open"));
+    .find((block) => source ? block.includes("node packages/serve/dist/cli.js") : block.includes("npx --yes @parcha/agentrun@0.4 > agentrun.log"));
   assert.ok(step, "the skill has its server-start recipe");
   return step;
 }
@@ -725,6 +725,21 @@ test("the setup skill names a hosted cloud session before the questions, and its
   const lines = run.stdout.split("\n").filter((line) => line.startsWith("set: "));
   assert.deepEqual(lines, ["set: CLAUDE_CODE_REMOTE", "set: SSH_CONNECTION"], "each signal set, by name");
   assert.doesNotMatch(`${run.stdout}${run.stderr}`, /private-fixture/, "no value is printed");
+});
+// A person whose assistant set the server up was handed a link to click, then a command that prints the code, when the
+// page could have been open already with the code in it. The skill has the assistant open the setup link itself.
+test("the setup skill opens the setup page, code filled in, in the person's browser, and hands over a link only when it can open none", () => {
+  const skill = setupSkill();
+  assert.doesNotMatch(setupRecipe(), /--no-open/, "the start opens the browser where it can");
+  const start = skillSection(skill, "3. Start it where they chose");
+  const at = start.indexOf("### Open the setup page");
+  assert.ok(at > start.indexOf("npx --yes @parcha/agentrun@0.4 > agentrun.log"), "the step follows the start");
+  const step = start.slice(at).replace(/\s+/g, " ");
+  assert.match(step, /never send a link for them to click while you can open it, and never a command that prints or fetches the code/);
+  for (const opener of ['open "<link>"', 'xdg-open "<link>"', 'start "" "<link>"', "your client's browser or preview tool"]) assert.ok(step.includes(opener), opener);
+  assert.match(step, /Only when you have neither, send the link itself/);
+  assert.match(step, /Set up this server: <address>\/setup#code=<code>/, "the link is the one the log prints, code and all");
+  assert.match(step, /Never the API token/);
 });
 function setupFixture(t, commands) {
   const dir = mkdtempSync(join(tmpdir(), "agentrun-skill-"));

@@ -104,7 +104,7 @@ sentence and offer a hosted service, or, with their OK, `nvm install 24.22.3` wh
 
 ```sh
 umask 077
-npx --yes @parcha/agentrun@0.4 --no-open > agentrun.log 2>&1 &
+npx --yes @parcha/agentrun@0.4 > agentrun.log 2>&1 &
 agentrun_setup_pid=$!
 echo "$agentrun_setup_pid" > agentrun.pid
 for i in $(seq 600); do
@@ -116,8 +116,9 @@ grep 'AgentRun is running at' agentrun.log || { echo 'AgentRun did not start; in
 ```
 
 Its data is in `~/.agentrun`; it takes the first free port from 7340 on loopback. If it did not start, read the log
-yourself and explain the error without quoting a token. Give the person the address and wait until they say it opens
-in their browser; a request from here does not show that. They set the owner password on the first visit.
+yourself and explain the error without quoting a token. On a computer with a browser it opens the setup page there
+itself, where they set the owner password; otherwise open it for them (below). Wait until they say the password is
+set; a request from here does not show that.
 To restart a server this step started, `kill "$(cat agentrun.pid)"`, wait until `server health` stops answering, and
 run the same command again. A server you reused was started some other way: ask how it runs (free text, one plain
 message), agree on when to stop it, and restart that same service with its own settings; never stop it unasked.
@@ -127,7 +128,7 @@ message), agree on when to stop it, and restart that same service with its own s
 Continue in a session on that machine, or an SSH session they already use; it needs Tailscale signed in to their own
 tailnet. Read its name with `tailscale status --json | jq -r .Self.DNSName` (drop the trailing dot), start AgentRun as
 above with `AGENTRUN_PUBLIC_URL=https://<that name>/` in front of `npx`, and with their OK share it on the tailnet
-only: `tailscale serve --bg <port it printed>`, never `tailscale funnel`. It asks for a setup code (below).
+only: `tailscale serve --bg <port it printed>`, never `tailscale funnel`. It asks for a setup code: open its page (below).
 
 ### A hosted service
 
@@ -141,15 +142,27 @@ only: `tailscale serve --bg <port it printed>`, never `tailscale funnel`. It ask
 - **AgentRun Cloud:** hosted for you, by request. They request access at https://console.agentrun.ai/ and follow its
   onboarding; the steps below don't apply. For team onboarding, offer https://calendly.com/d/dtwn-dsp-nx5/agentrun.
 
-### The setup code
+### Open the setup page
 
-A server at a public address asks for a **setup code** before the first password; say where it is with the address.
-On Render, the **Environment** tab holds `AGENTRUN_TOKEN`; they paste its value into **Setup code**. Elsewhere, the
-server's log has `Set up this server: <address>/setup#code=<code>`: read it privately and give them the newest such
-link. Never put the API token (`AGENTRUN_TOKEN`, or `.token` in the data folder) in the chat. The link works **once**
-and **expires 30 minutes** after it was printed. Then they press **Get a new code**, or you send
-`curl -sS -X POST "$CONSOLE_ADDRESS/v2/setup/code"` (it never returns the code) and read the newest line. A server
-that answers that with 404 has no such button: restarting it prints a new code.
+Open the setup page in the person's browser yourself, with the code filled in: never send a link for them to click
+while you can open it, and never a command that prints or fetches the code.
+
+1. Find the link in the server's log, read privately (`agentrun.log`, `journalctl --user -u <service>`, `docker logs
+   <container>`): the newest `Set up this server: <address>/setup#code=<code>` (a server at a public address; the code
+   fills in **Setup code**). With no such line, the server is on loopback and needs no code: the link is the console
+   address followed by `setup`.
+2. Open it in a browser they are looking at: `open "<link>"` (macOS), `xdg-open "<link>"` (Linux) or `start ""
+   "<link>"` (Windows) when this session runs on their computer, where the start above has already opened it; else
+   your client's browser or preview tool. Only when you have neither, send the link itself as the first line.
+3. Say it is open and sets the owner password. A link with a code works **once** and **expires 30 minutes** after it
+   was printed: give that clock time with its time zone when you can tell.
+
+The setup link is not the API token: it works once and briefly, so it may go to an opener, a browser tool or the chat.
+Never the API token (`AGENTRUN_TOKEN`, or `.token` in the data folder). On a Render service whose log you can't read,
+open the console address and say that the **Environment** tab's `AGENTRUN_TOKEN` goes into **Setup code**. An expired
+code: they press **Get a new code**, or you send `curl -sS -X POST "$CONSOLE_ADDRESS/v2/setup/code"` (it never returns
+the code), read the newest line and open it. A server that answers that with 404 has no such button: restarting it
+prints a new code.
 
 ## 4. Look for the agents they already run
 
