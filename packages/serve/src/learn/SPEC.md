@@ -3,7 +3,7 @@
 An agent's memory is a folder of short markdown notes in Claude Code's own auto-memory format, kept by its host. Every
 run reads the folder's index in its instructions and finds the notes in a copy of the folder. When a run ends, the host
 may ask it one more turn, which answers with the notes it would keep. The host checks them, one grader judges them,
-and the host merges it into the folder. This page is the contract: the format, what a run may propose, the checks, the
+and the host merges them into the folder. This page is the contract: the format, what a run may propose, the checks, the
 caps and the merge. The code is the server's own, beside this page: `notes.ts` (the format), `check.ts`
 (the checks), `reflect.ts` (the end-of-run prompt and the parser of its answer) and `grade.ts` (the rubric, the grader's prompt and its verdict).
 None of it runs git or calls a model: the rest of the server does both.
